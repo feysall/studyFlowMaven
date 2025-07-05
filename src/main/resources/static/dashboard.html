@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>StudyFlow – Панель управления</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #eef2f5;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+            font-size: 24px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            background-color: white;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h2 {
+            margin-bottom: 20px;
+        }
+        select, button, input {
+            padding: 10px;
+            margin-top: 10px;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .user-info {
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .admin-panel {
+            display: none;
+            padding: 20px;
+            background: #f0f0f0;
+            border: 1px dashed #999;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .create-test-form {
+            display: none;
+            margin-top: 20px;
+        }
+        .question-block {
+            border: 1px dashed #ccc;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="header">StudyFlow – Панель управления</div>
+<div class="container">
+    <div class="user-info">Пользователь: <span id="username">загрузка...</span></div>
+
+    <h2>Выберите тест</h2>
+    <select id="topicSelect">
+        <option disabled selected>Загрузка тестов...</option>
+    </select>
+    <button id="startTestBtn">Перейти к тесту</button>
+
+    <div class="admin-panel" id="adminPanel">
+        <h3>Панель администратора</h3>
+        <button id="createTestBtn">Создать тест</button>
+        <button id="deleteTestBtn">Удалить тест</button>
+
+        <!-- Форма для создания теста -->
+        <div class="create-test-form" id="createTestForm">
+            <h4>Новый тест</h4>
+            <input id="newTestTitle" placeholder="Название теста" />
+
+            <div id="questionsContainer"></div>
+            <button id="addQuestionBtn">+ Добавить вопрос</button>
+            <button id="submitTestBtn" style="margin-top:1rem;">Сохранить тест</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const token = localStorage.getItem("jwtToken");
+    const usernameSpan = document.getElementById("username");
+    const topicSelect = document.getElementById("topicSelect");
+    const adminPanel = document.getElementById("adminPanel");
+
+    if (!token) {
+        window.location.href = "/auth.html";
+    } else {
+        fetch('/api/user-info', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        })
+            .then(res => {
+                if (res.status === 401) {
+                    localStorage.removeItem('jwtToken');
+                    window.location.href = "/auth.html";
+                }
+                return res.json();
+            })
+            .then(data => {
+                usernameSpan.textContent = data.username;
+
+                if (data.role === 'ADMIN') {
+                    adminPanel.style.display = 'block';
+                }
+
+                return fetch('/api/tests', { headers: { 'Authorization': 'Bearer ' + token } })
+            })
+            .then(res => res.json())
+            .then(tests => {
+                if (Array.isArray(tests) && tests.length > 0) {
+                    topicSelect.innerHTML = tests.map(test => `<option value="${test.id}">${test.title}</option>`).join("");
+                } else {
+                    topicSelect.innerHTML = '<option disabled>Нет доступных тестов</option>';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                topicSelect.innerHTML = '<option disabled>Нет доступных тестов</option>';
+            });
+    }
+
+    document.getElementById("startTestBtn").addEventListener("click", () => {
+        const selectedTestId = topicSelect.value;
+        if (selectedTestId) {
+            window.location.href = `/test.html?id=${selectedTestId}`;
+        } else {
+            alert('Сначала выберите тест');
+        }
+    });
+
+    //DELETE TEST BUTTON FOR ADMIN
+    document.getElementById('deleteTestBtn').addEventListener('click', async () => {
+        const selectedTestId = topicSelect.value;
+        const selectedTestTitle = topicSelect.options[topicSelect.selectedIndex]?.textContent;
+
+        if (!selectedTestId) {
+            alert('Сначала выберите тест для удаления.');
+            return;
+        }
+
+        const confirmed = confirm(`Вы уверены, что хотите удалить тест "${selectedTestTitle}"? Это действие необратимо.`);
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/tests/${selectedTestId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            if (res.ok) {
+                alert('Тест успешно удалён!');
+                window.location.reload();
+            } else {
+                const errorText = await res.text();
+                alert('Ошибка при удалении теста:\n' + errorText);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Произошла ошибка при удалении теста.');
+        }
+    });
+
+
+    // Логика для создания тестов
+    const createTestBtn = document.getElementById('createTestBtn');
+    const createTestForm = document.getElementById('createTestForm');
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+    const questionsContainer = document.getElementById('questionsContainer');
+    const submitTestBtn = document.getElementById('submitTestBtn');
+
+    createTestBtn.addEventListener('click', () => {
+        createTestForm.style.display = createTestForm.style.display === 'block' ? 'none' : 'block';
+    });
+
+    addQuestionBtn.addEventListener('click', () => {
+        const questionDiv = document.createElement('div');
+        questionDiv.className = 'question-block';
+        questionDiv.innerHTML = `
+            <input placeholder="Текст вопроса" class="question-text" style="margin-bottom:8px;" />
+            <div class="options-container"></div>
+            <button class="addOptionBtn" style="margin-bottom:8px;">+ Вариант ответа</button>
+            <input type="number" class="correctIndexInput" placeholder="Номер правильного ответа (начиная с 0)" style="margin-bottom:8px;" />
+        `;
+
+        const addOptionBtn = questionDiv.querySelector('.addOptionBtn');
+        const optionsContainer = questionDiv.querySelector('.options-container');
+
+        addOptionBtn.addEventListener('click', () => {
+            const optInput = document.createElement('input');
+            optInput.placeholder = 'Вариант ответа';
+            optInput.style.marginBottom = '8px';
+            optionsContainer.appendChild(optInput);
+        });
+
+        questionsContainer.appendChild(questionDiv);
+    });
+
+    submitTestBtn.addEventListener('click', async () => {
+        const title = document.getElementById('newTestTitle').value;
+        const questionDivs = questionsContainer.querySelectorAll('.question-block');
+
+        const questions = Array.from(questionDivs).map(div => {
+            const text = div.querySelector('.question-text').value;
+            const optionInputs = div.querySelectorAll('.options-container input');
+            const options = Array.from(optionInputs).map(input => input.value);
+            const correctIndex = Number(div.querySelector('.correctIndexInput').value);
+
+            return { text, options, correctOptionIndex: correctIndex };
+        });
+
+        const requestBody = { title, questions };
+        try {
+            const res = await fetch('/api/tests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (res.ok) {
+                alert('Тест успешно создан!');
+                createTestForm.style.display = 'none';
+                window.location.reload();
+            } else {
+                const errText = await res.text();
+                alert('Ошибка при создании теста:\n' + errText);
+                console.error('Error response:', errText);
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Произошла ошибка при запросе.');
+        }
+    });
+</script>
+</body>
+</html>
