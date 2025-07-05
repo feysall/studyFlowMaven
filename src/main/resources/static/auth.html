@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Регистрация и Вход - StudyFlow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #a5d6a7;
+            cursor: not-allowed;
+        }
+        .msg {
+            margin-top: 15px;
+            text-align: center;
+            color: #d9534f;
+            min-height: 20px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            user-select: none;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: bold;
+            transition: color 0.3s ease, border-bottom-color 0.3s ease;
+        }
+        .tab.active {
+            border-bottom: 2px solid #4CAF50;
+            color: #4CAF50;
+        }
+        form {
+            display: none;
+        }
+        form.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <div id="tab-login" class="tab active">Вход</div>
+        <div id="tab-register" class="tab">Регистрация</div>
+    </div>
+
+    <form id="loginForm" class="active" autocomplete="off" novalidate>
+        <h2>Вход</h2>
+        <input type="text" id="loginUsername" placeholder="Имя пользователя" required />
+        <input type="password" id="loginPassword" placeholder="Пароль" required />
+        <button type="submit">Войти</button>
+        <div class="msg" id="loginMsg"></div>
+    </form>
+
+    <form id="registerForm" autocomplete="off" novalidate>
+        <h2>Регистрация</h2>
+        <input type="text" id="registerUsername" placeholder="Имя пользователя" required />
+        <input type="email" id="registerEmail" placeholder="Email" required />
+        <input type="password" id="registerPassword" placeholder="Пароль" required />
+        <button type="submit">Зарегистрироваться</button>
+        <div class="msg" id="registerMsg"></div>
+    </form>
+</div>
+
+<script>
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+
+    // Переключение вкладок
+    tabLogin.addEventListener('click', () => {
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        loginForm.classList.add('active');
+        registerForm.classList.remove('active');
+        clearMessages();
+    });
+
+    tabRegister.addEventListener('click', () => {
+        tabRegister.classList.add('active');
+        tabLogin.classList.remove('active');
+        registerForm.classList.add('active');
+        loginForm.classList.remove('active');
+        clearMessages();
+    });
+
+    function clearMessages() {
+        document.getElementById('loginMsg').textContent = '';
+        document.getElementById('registerMsg').textContent = '';
+    }
+
+    // Обработка логина
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const loginMsg = document.getElementById('loginMsg');
+        loginMsg.textContent = '';
+
+        const submitBtn = loginForm.querySelector('button');
+        submitBtn.disabled = true;
+
+        const credentials = {
+            username: document.getElementById('loginUsername').value.trim(),
+            password: document.getElementById('loginPassword').value
+        };
+
+        try {
+            const response = await fetch("/auth/login", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(credentials)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                localStorage.setItem('jwtToken', data.token);
+                loginForm.reset();
+                window.location.href = "dashboard.html";
+            } else {
+                const error = await response.text();
+                loginMsg.style.color = 'red';
+                loginMsg.textContent = `Ошибка: ${error}`;
+            }
+        } catch {
+            loginMsg.style.color = 'red';
+            loginMsg.textContent = 'Ошибка подключения к серверу';
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    // Обработка регистрации
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const registerMsg = document.getElementById('registerMsg');
+        registerMsg.textContent = '';
+
+        const submitBtn = registerForm.querySelector('button');
+        submitBtn.disabled = true;
+
+        const user = {
+            username: document.getElementById('registerUsername').value.trim(),
+            email: document.getElementById('registerEmail').value.trim(),
+            password: document.getElementById('registerPassword').value
+        };
+
+        try {
+            const response = await fetch("/auth/register", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(user)
+            });
+
+            if (response.ok) {
+                registerMsg.style.color = 'green';
+                registerMsg.textContent = 'Успешная регистрация!';
+                registerForm.reset();
+            } else {
+                const error = await response.text();
+                registerMsg.style.color = 'red';
+                registerMsg.textContent = `Ошибка: ${error}`;
+            }
+        } catch {
+            registerMsg.style.color = 'red';
+            registerMsg.textContent = 'Ошибка подключения к серверу';
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -7,6 +7,7 @@ spring:
     username: postgres
     password: pass
 
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -16,5 +17,6 @@ spring:
         format_sql: true
 
   jwt:
-    secret: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30
-    expiration: 3600000
+    secret: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9DNLASKDMKMALMDKASLMDLKADMK
+    expiration: 36000000
+
